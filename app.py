@@ -46,7 +46,7 @@ if user_input := st.chat_input("메시지를 입력해 주세요"):
         with st.spinner("답변 생성 중..."):
             chat_completion = client.chat.completions.create(
                 messages=api_messages,
-                model="llama-3.1-8b-instant",
+                model="llama3-8b-8192",
                 temperature=0.2,
             )
             bot_reply = chat_completion.choices[0].message.content
