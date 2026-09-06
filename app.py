@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 
 st.set_page_config(page_title="나만의 맞춤형 LLM 챗봇", page_icon="🦜")
-st.title("🦜 Chat Custom LLM")
+st.title("🦜 박동석 LLM")
 
 # Groq 클라이언트 초기화
 if "GROQ_API_KEY" not in st.secrets:
@@ -24,7 +24,7 @@ SYSTEM_PROMPT = """
 - 구성원: 총 4명 (아버지 박태일, 어머니 박정숙, 형 박동기, 본인 박동석)
 - 주의: 동생은 없음 (본인이 막내)
 - 반려견: 박노랑 (1살)
-
+- 구성원의 나이: 아버지는 55세, 어머니는 57세, 형은 31살
 [답변 원칙]
 프로필과 가족 정보에 명시된 사실에 기반해서만 답변하고, 없는 정보는 지어내지 말고 정정해 줘.
 """
