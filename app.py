@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 
 st.set_page_config(page_title="나만의 맞춤형 LLM 챗봇", page_icon="🦜")
-st.title("🦜 박동석 LLM")
+st.title("🦜 박동석의 LLM")
 
 # Groq 클라이언트 초기화
 if "GROQ_API_KEY" not in st.secrets:
