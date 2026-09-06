@@ -26,7 +26,7 @@ SYSTEM_PROMPT = """
 - 반려견: 박노랑 (1살)
 
 [답변 원칙]
-프로필과 가족 정보에 있는 사실에 기반해서만 답변하고, 없는 정보는 지어내지 말고 정정해 줘.
+프로필과 가족 정보에 명시된 사실에 기반해서만 답변하고, 없는 정보는 지어내지 말고 정정해 줘.
 """
 
 # 세션 대화 기록 초기화
@@ -49,29 +49,26 @@ if user_input := st.chat_input("메시지를 입력해 주세요"):
     with st.chat_message("assistant"):
         with st.spinner("답변 생성 중..."):
             try:
-                # 1순위: llama-3.3-70b-versatile, 2순위: llama-3.1-8b-instant, 3순위: gemma2-9b-it
-                models_to_try = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"]
-                bot_reply = None
-                last_error = None
-
-                for target_model in models_to_try:
-                    try:
-                        chat_completion = client.chat.completions.create(
-                            model=target_model,
-                            messages=api_messages,
-                            temperature=0.2,
-                        )
-                        bot_reply = chat_completion.choices[0].message.content
+                # Groq 계정에서 현재 사용 가능한 실제 모델 목록 조회
+                available_models = [m.id for m in client.models.list().data if "whisper" not in m.id]
+                
+                # llama 8b 계열 우선 선택, 없으면 사용 가능한 첫 번째 텍스트 모델 선택
+                target_model = None
+                for candidate in ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]:
+                    if candidate in available_models:
+                        target_model = candidate
                         break
-                    except Exception as e:
-                        last_error = e
-                        continue
+                if not target_model and available_models:
+                    target_model = available_models[0]
 
-                if bot_reply:
-                    st.write(bot_reply)
-                    st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
-                else:
-                    st.error(f"모든 모델 호출 실패: {last_error}")
+                chat_completion = client.chat.completions.create(
+                    model=target_model,
+                    messages=api_messages,
+                    temperature=0.2,
+                )
+                bot_reply = chat_completion.choices[0].message.content
+                st.write(bot_reply)
+                st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
 
             except Exception as err:
-                st.error(f"전체 오류 내용: {err}")
+                st.error(f"오류 발생: {err}")
