@@ -5,12 +5,16 @@ st.set_page_config(page_title="나만의 맞춤형 LLM 챗봇", page_icon="🦜"
 st.title("🦜 Chat Custom LLM")
 
 # Groq 클라이언트 초기화
+if "GROQ_API_KEY" not in st.secrets:
+    st.error("Streamlit Secrets에 GROQ_API_KEY가 설정되지 않았습니다.")
+    st.stop()
+
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # 개인정보 및 한국어 출력 규칙 프롬프트
 SYSTEM_PROMPT = """
 너는 동서울대학교 컴퓨터소프트웨어과 학생 박동석의 전용 AI 비서야.
-반드시 모든 답변을 자연스럽고 친절한 한국어로만 작성해. 영어를 섞지 마.
+반드시 모든 답변을 자연스럽고 친절한 한국어로만 작성해. 영어를 절대 섞지 마.
 
 [사용자 프로필]
 - 이름: 박동석
@@ -38,19 +42,36 @@ if user_input := st.chat_input("메시지를 입력해 주세요"):
     st.session_state["messages"].append({"role": "user", "content": user_input})
     st.chat_message("user").write(user_input)
 
-    # Groq API 전달용 메시지 리스트
     api_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     for m in st.session_state["messages"]:
         api_messages.append({"role": m["role"], "content": m["content"]})
 
-    # 최신 Llama 3.3 70B 모델 호출
     with st.chat_message("assistant"):
         with st.spinner("답변 생성 중..."):
-            chat_completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=api_messages
-            )
-            bot_reply = chat_completion.choices[0].message.content
-            st.write(bot_reply)
+            try:
+                # 1순위: llama-3.3-70b-versatile, 2순위: llama-3.1-8b-instant, 3순위: gemma2-9b-it
+                models_to_try = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"]
+                bot_reply = None
+                last_error = None
 
-    st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
+                for target_model in models_to_try:
+                    try:
+                        chat_completion = client.chat.completions.create(
+                            model=target_model,
+                            messages=api_messages,
+                            temperature=0.2,
+                        )
+                        bot_reply = chat_completion.choices[0].message.content
+                        break
+                    except Exception as e:
+                        last_error = e
+                        continue
+
+                if bot_reply:
+                    st.write(bot_reply)
+                    st.session_state["messages"].append({"role": "assistant", "content": bot_reply})
+                else:
+                    st.error(f"모든 모델 호출 실패: {last_error}")
+
+            except Exception as err:
+                st.error(f"전체 오류 내용: {err}")
