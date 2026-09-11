@@ -375,23 +375,6 @@ if question := st.chat_input(
         score = retrieved[0]["score"]
 
 
-        with st.expander(
-            "🔎 검색된 참고 자료"
-        ):
-
-            st.write(
-                best_document
-            )
-
-            st.caption(
-                f"관련도: {score:.3f}"
-            )
-
-            st.caption(
-                "답변 방식: RAG"
-            )
-
-
         rag_prompt = f"""
 다음 참고 자료를 이용하여 질문에 답하세요.
 
@@ -444,19 +427,6 @@ if question := st.chat_input(
     # =====================================================
 
     else:
-
-        with st.expander(
-            "🔎 검색된 참고 자료"
-        ):
-
-            st.write(
-                "knowledge.txt에서 관련 자료를 찾지 못했습니다."
-            )
-
-            st.caption(
-                "답변 방식: LLM 자체 지식"
-            )
-
 
         general_prompt = f"""
 사용자의 다음 질문에 답변하세요.
