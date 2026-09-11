@@ -1,5 +1,9 @@
 import streamlit as st
-from groq import Groq
+
+
+import requests
+
+
 
 st.set_page_config(page_title="나만의 맞춤형 LLM 챗봇", page_icon="🦜")
 st.title("🦜 박동석의 LLM")
