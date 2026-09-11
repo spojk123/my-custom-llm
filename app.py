@@ -50,17 +50,25 @@ SYSTEM_PROMPT = """
 
 # 확실하게 보여줘야 하는 개인정보 질문은 직접 처리
 def profile_answer(question):
+    q = question.strip().replace(" ", "").replace("?", "")
 
-    q = question.strip().replace(" ", "")
-
-    if q in ["소속", "내소속", "소속이어디야", "어디소속이야"]:
-        return "박동석님의 소속은 동서울대학교 컴퓨터소프트웨어과 4학년입니다."
-
-    if q in ["이름", "내이름", "이름이뭐야"]:
+    # 이름 관련 질문
+    if "이름" in q:
         return "박동석님의 이름은 박동석입니다."
 
-    return None
+    # 소속 관련 질문
+    if "소속" in q:
+        return "박동석님의 소속은 동서울대학교 컴퓨터소프트웨어과 4학년입니다."
 
+    # 학교 관련 질문
+    if "학교" in q or "대학교" in q:
+        return "박동석님은 동서울대학교 컴퓨터소프트웨어과 4학년입니다."
+
+    # 학과 관련 질문
+    if "학과" in q or "전공" in q:
+        return "박동석님의 학과는 동서울대학교 컴퓨터소프트웨어과입니다."
+
+    return None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
