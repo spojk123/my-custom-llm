@@ -104,21 +104,19 @@ vectorizer, knowledge_vectors = create_retriever(
 # =========================================================
 
 def normalize_question(question):
-
     q = question.strip()
 
-    # "나", "내"를 박동석으로 보강해서
-    # 검색기가 개인정보를 더 잘 찾게 함
-    replacements = [
-        ("나의", "박동석의"),
-        ("내가", "박동석이"),
-        ("내", "박동석의"),
-        ("나는", "박동석은"),
-        ("나", "박동석")
-    ]
+    # 가족 호칭 통일
+    q = q.replace("엄마", "어머니")
+    q = q.replace("아빠", "아버지")
+    q = q.replace("강아지", "반려견")
 
-    for old, new in replacements:
-        q = q.replace(old, new)
+    # 사용자 자신을 박동석으로 통일
+    q = q.replace("나의", "박동석의")
+    q = q.replace("내가", "박동석이")
+    q = q.replace("나는", "박동석은")
+    q = q.replace("내", "박동석의")
+    q = q.replace("나", "박동석")
 
     return q
 
