@@ -110,3 +110,108 @@ def profile_answer(question):
         return "박동석님의 이름은 박동석입니다."
 
     return None
+# =========================
+# 대화 기록 초기화
+# =========================
+
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
+
+
+# =========================
+# 이전 대화 출력
+# =========================
+
+for message in st.session_state["messages"]:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
+
+
+# =========================
+# 채팅 입력창
+# =========================
+
+if prompt := st.chat_input("메시지를 입력해 주세요"):
+
+    # 사용자 질문 저장
+    st.session_state["messages"].append({
+        "role": "user",
+        "content": prompt
+    })
+
+    with st.chat_message("user"):
+        st.write(prompt)
+
+
+    # 먼저 직접 등록된 정보 확인
+    fixed_answer = profile_answer(prompt)
+
+
+    # 직접 처리 가능한 질문이면 바로 답변
+    if fixed_answer is not None:
+
+        answer = fixed_answer
+
+    else:
+
+        # LLM에게 전달할 메시지
+        messages = [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            }
+        ]
+
+        # 최근 대화 내용 추가
+        for msg in st.session_state["messages"][-4:]:
+            messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+
+
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+
+
+        inputs = tokenizer(
+            text,
+            return_tensors="pt"
+        )
+
+
+        with st.spinner("답변 생성 중..."):
+
+            with torch.no_grad():
+
+                output = model.generate(
+                    **inputs,
+                    max_new_tokens=100,
+                    do_sample=True,
+                    temperature=0.3,
+                    repetition_penalty=1.1
+                )
+
+
+        generated = output[0][inputs["input_ids"].shape[1]:]
+
+
+        answer = tokenizer.decode(
+            generated,
+            skip_special_tokens=True
+        ).strip()
+
+
+    # 답변 출력
+    with st.chat_message("assistant"):
+        st.write(answer)
+
+
+    # 답변 저장
+    st.session_state["messages"].append({
+        "role": "assistant",
+        "content": answer
+    })
