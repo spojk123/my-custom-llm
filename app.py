@@ -376,6 +376,13 @@ if question := st.chat_input(
 
 
         rag_prompt = f"""
+       
+        정보: {best_document}
+        질문: {question}
+
+        정보를 바탕으로 질문에 대한 답만 한국어 한 문장으로 작성하세요.
+        정보, 질문, 참고 자료 등의 내용을 답변에 다시 출력하지 마세요.
+        """
 다음 참고 자료를 이용하여 질문에 답하세요.
 
 [참고 자료]
@@ -395,31 +402,30 @@ if question := st.chat_input(
 """
 
 
-        with st.spinner(
-            "관련 자료를 이용해 답변 생성 중..."
-        ):
+        with st.spinner("답변 생성 중..."):
+    llm_answer = generate_llm_answer(
+        RAG_SYSTEM_PROMPT,
+        rag_prompt,
+        max_new_tokens=40
+    )
 
-            llm_answer = generate_llm_answer(
-                RAG_SYSTEM_PROMPT,
-                rag_prompt,
-                max_new_tokens=70
-            )
+if is_good_korean_answer(llm_answer):
+    # 프롬프트 내용을 그대로 출력하는 경우 방지
+    bad_words = [
+        "참고 자료",
+        "[참고",
+        "[질문]",
+        "정보:",
+        "질문:",
+        "규칙:"
+    ]
 
-
-        # SmolLM2가 한국어 답변을 잘 만들었으면 사용
-        if is_good_korean_answer(
-            llm_answer
-        ):
-
-            answer = llm_answer
-
-        else:
-
-            # 이상한 영어 등이 나오면
-            # RAG 검색 자료를 그대로 활용
-            answer = clean_document_answer(
-                best_document
-            )
+    if any(word in llm_answer for word in bad_words):
+        answer = clean_document_answer(best_document)
+    else:
+        answer = llm_answer
+else:
+    answer = clean_document_answer(best_document)
 
 
     # =====================================================
