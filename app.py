@@ -370,63 +370,40 @@ if question := st.chat_input(
 
     if retrieved:
 
-        best_document = retrieved[0]["text"]
+    best_document = retrieved[0]["text"]
 
-        score = retrieved[0]["score"]
+    rag_prompt = f"""
+정보: {best_document}
+질문: {question}
 
-
-        rag_prompt = f"""
-       
-        정보: {best_document}
-        질문: {question}
-
-        정보를 바탕으로 질문에 대한 답만 한국어 한 문장으로 작성하세요.
-        정보, 질문, 참고 자료 등의 내용을 답변에 다시 출력하지 마세요.
-        """
-다음 참고 자료를 이용하여 질문에 답하세요.
-
-[참고 자료]
-
-{best_document}
-
-[질문]
-
-{question}
-
-규칙:
-
-1. 반드시 한국어로 답변하세요.
-2. 참고 자료의 사실을 변경하지 마세요.
-3. 참고 자료에 없는 정보를 만들지 마세요.
-4. 한 문장 또는 두 문장으로 간단하게 답변하세요.
+정보를 바탕으로 질문에 대한 답만 한국어 한 문장으로 작성하세요.
+정보, 질문, 참고 자료 등의 내용을 답변에 다시 출력하지 마세요.
 """
 
+    with st.spinner("답변 생성 중..."):
+        llm_answer = generate_llm_answer(
+            RAG_SYSTEM_PROMPT,
+            rag_prompt,
+            max_new_tokens=40
+        )
 
-        with st.spinner("답변 생성 중..."):
-    llm_answer = generate_llm_answer(
-        RAG_SYSTEM_PROMPT,
-        rag_prompt,
-        max_new_tokens=40
-    )
+    if is_good_korean_answer(llm_answer):
+        bad_words = [
+            "참고 자료",
+            "[참고",
+            "[질문]",
+            "정보:",
+            "질문:",
+            "규칙:"
+        ]
 
-if is_good_korean_answer(llm_answer):
-    # 프롬프트 내용을 그대로 출력하는 경우 방지
-    bad_words = [
-        "참고 자료",
-        "[참고",
-        "[질문]",
-        "정보:",
-        "질문:",
-        "규칙:"
-    ]
+        if any(word in llm_answer for word in bad_words):
+            answer = clean_document_answer(best_document)
+        else:
+            answer = llm_answer
 
-    if any(word in llm_answer for word in bad_words):
-        answer = clean_document_answer(best_document)
     else:
-        answer = llm_answer
-else:
-    answer = clean_document_answer(best_document)
-
+        answer = clean_document_answer(best_document)
 
     # =====================================================
     # 2. knowledge.txt에 없는 일반 질문
