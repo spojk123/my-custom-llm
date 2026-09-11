@@ -354,7 +354,7 @@ if question := st.chat_input(
         st.write(question)
 
 
-    # =====================================================
+      # =====================================================
     # 1. RAG 검색
     # =====================================================
 
@@ -363,12 +363,11 @@ if question := st.chat_input(
         top_k=1
     )
 
-
     # =====================================================
     # RAG 자료가 검색된 경우
     # =====================================================
 
-        if retrieved:
+    if retrieved:
 
         best_document = retrieved[0]["text"]
 
@@ -425,28 +424,19 @@ if question := st.chat_input(
 4. 짧고 이해하기 쉽게 답변하세요.
 """
 
-
         with st.spinner(
             "LLM 자체 지식으로 답변 생성 중..."
         ):
-
             llm_answer = generate_llm_answer(
                 GENERAL_SYSTEM_PROMPT,
                 general_prompt,
                 max_new_tokens=100
             )
 
-
-        # 정상적인 한국어 답변이면 출력
-        if is_good_korean_answer(
-            llm_answer
-        ):
-
+        if is_good_korean_answer(llm_answer):
             answer = llm_answer
 
         else:
-
-            # SmolLM2가 영어 헛소리를 한 경우
             answer = (
                 "이 질문은 등록된 지식 자료에 없으며, "
                 "현재 사용 중인 소형 LLM이 "
