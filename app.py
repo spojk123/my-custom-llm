@@ -368,11 +368,11 @@ if question := st.chat_input(
     # RAG 자료가 검색된 경우
     # =====================================================
 
-    if retrieved:
+        if retrieved:
 
-    best_document = retrieved[0]["text"]
+        best_document = retrieved[0]["text"]
 
-    rag_prompt = f"""
+        rag_prompt = f"""
 정보: {best_document}
 질문: {question}
 
@@ -380,30 +380,30 @@ if question := st.chat_input(
 정보, 질문, 참고 자료 등의 내용을 답변에 다시 출력하지 마세요.
 """
 
-    with st.spinner("답변 생성 중..."):
-        llm_answer = generate_llm_answer(
-            RAG_SYSTEM_PROMPT,
-            rag_prompt,
-            max_new_tokens=40
-        )
+        with st.spinner("답변 생성 중..."):
+            llm_answer = generate_llm_answer(
+                RAG_SYSTEM_PROMPT,
+                rag_prompt,
+                max_new_tokens=40
+            )
 
-    if is_good_korean_answer(llm_answer):
-        bad_words = [
-            "참고 자료",
-            "[참고",
-            "[질문]",
-            "정보:",
-            "질문:",
-            "규칙:"
-        ]
+        if is_good_korean_answer(llm_answer):
+            bad_words = [
+                "참고 자료",
+                "[참고",
+                "[질문]",
+                "정보:",
+                "질문:",
+                "규칙:"
+            ]
 
-        if any(word in llm_answer for word in bad_words):
-            answer = clean_document_answer(best_document)
+            if any(word in llm_answer for word in bad_words):
+                answer = clean_document_answer(best_document)
+            else:
+                answer = llm_answer
+
         else:
-            answer = llm_answer
-
-    else:
-        answer = clean_document_answer(best_document)
+            answer = clean_document_answer(best_document)
 
     # =====================================================
     # 2. knowledge.txt에 없는 일반 질문
