@@ -7,7 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 # =========================================================
-# Streamlit 설정
+# Streamlit 기본 설정
 # =========================================================
 
 st.set_page_config(
@@ -19,7 +19,7 @@ st.title("🦜 박동석의 LLM")
 
 
 # =========================================================
-# 사용할 오픈소스 LLM
+# 오픈소스 LLM
 # =========================================================
 
 MODEL_NAME = "HuggingFaceTB/SmolLM2-135M-Instruct"
@@ -44,7 +44,6 @@ def load_model():
 
 
 with st.spinner("LLM 모델을 불러오는 중입니다..."):
-
     tokenizer, model = load_model()
 
 
@@ -63,8 +62,7 @@ def load_knowledge():
 
         text = f.read()
 
-    # 중요:
-    # 한 줄을 하나의 지식 데이터로 사용
+    # 한 줄 = 하나의 지식 데이터
     chunks = [
         line.strip()
         for line in text.splitlines()
@@ -84,7 +82,6 @@ knowledge_chunks = load_knowledge()
 @st.cache_resource
 def create_retriever(chunks):
 
-    # 한국어 검색을 위해 문자 단위 TF-IDF 사용
     vectorizer = TfidfVectorizer(
         analyzer="char",
         ngram_range=(2, 4)
@@ -103,13 +100,41 @@ vectorizer, knowledge_vectors = create_retriever(
 
 
 # =========================================================
+# 질문 문장 정리
+# =========================================================
+
+def normalize_question(question):
+
+    q = question.strip()
+
+    # "나", "내"를 박동석으로 보강해서
+    # 검색기가 개인정보를 더 잘 찾게 함
+    replacements = [
+        ("나의", "박동석의"),
+        ("내가", "박동석이"),
+        ("내", "박동석의"),
+        ("나는", "박동석은"),
+        ("나", "박동석")
+    ]
+
+    for old, new in replacements:
+        q = q.replace(old, new)
+
+    return q
+
+
+# =========================================================
 # 관련 문서 검색
 # =========================================================
 
-def retrieve_documents(question, top_k=3):
+def retrieve_documents(question, top_k=1):
+
+    normalized_question = normalize_question(
+        question
+    )
 
     question_vector = vectorizer.transform(
-        [question]
+        [normalized_question]
     )
 
     similarities = cosine_similarity(
@@ -123,10 +148,12 @@ def retrieve_documents(question, top_k=3):
 
     for index in indexes:
 
-        score = float(similarities[index])
+        score = float(
+            similarities[index]
+        )
 
-        # 관련도가 너무 낮은 자료는 제외
-        if score >= 0.05:
+        # 관련도가 너무 낮으면 사용하지 않음
+        if score >= 0.10:
 
             results.append({
                 "text": knowledge_chunks[index],
@@ -141,29 +168,26 @@ def retrieve_documents(question, top_k=3):
 # =========================================================
 
 SYSTEM_PROMPT = """
-너는 동서울대학교 컴퓨터소프트웨어과 학생
-박동석의 전용 맞춤형 AI 비서다.
+너는 동서울대학교 컴퓨터소프트웨어과 학생 박동석의 전용 AI 비서다.
 
 반드시 한국어로만 답변한다.
 
-사용자의 질문에는 제공된 참고 자료를 최우선으로 사용한다.
+사용자의 질문에 답할 때 제공된 참고 자료를 최우선으로 사용한다.
 
-참고 자료에 답이 존재하면
-반드시 그 내용을 이용해서 답변한다.
+참고 자료에 답이 존재하면 그 내용을 사실 그대로 사용한다.
 
-참고 자료에 없는 내용을 임의로 만들어내지 않는다.
+참고 자료에 없는 사실은 절대 만들어내지 않는다.
 
-답변은 짧고 자연스럽게 작성한다.
-
-사용자가 '나', '내', '우리 가족'이라고 말하면
-사용자는 박동석을 의미한다.
+사용자가 '나', '내', '우리'라고 말하면 박동석을 의미한다.
 
 영어로 답변하지 않는다.
+
+답변은 한 문장 또는 두 문장으로 짧고 자연스럽게 작성한다.
 """
 
 
 # =========================================================
-# 한국어 답변인지 확인
+# LLM 답변 품질 검사
 # =========================================================
 
 def is_good_korean_answer(answer):
@@ -184,26 +208,29 @@ def is_good_korean_answer(answer):
         ):
             english_count += 1
 
-    # 한국어가 거의 없으면 잘못된 답변으로 판단
+    # 한국어가 거의 없으면 실패
     if korean_count < 3:
         return False
 
-    # 영어가 한국어보다 지나치게 많으면 실패
-    if english_count > korean_count * 2:
+    # 영어 비율이 너무 높으면 실패
+    if english_count > korean_count:
+        return False
+
+    # 너무 긴 헛소리 방지
+    if len(answer) > 300:
         return False
 
     return True
 
 
 # =========================================================
-# 검색 결과를 자연스럽게 변경
+# 검색된 문장을 자연스럽게 변환
 # =========================================================
 
 def clean_document_answer(document):
 
     answer = document.strip()
 
-    # knowledge.txt 문장의 종결을 조금 자연스럽게 변경
     if answer.endswith("이다."):
         answer = answer[:-3] + "입니다."
 
@@ -213,6 +240,9 @@ def clean_document_answer(document):
     elif answer.endswith("있다."):
         answer = answer[:-3] + "있습니다."
 
+    elif answer.endswith("없다."):
+        answer = answer[:-3] + "없습니다."
+
     return answer
 
 
@@ -221,12 +251,11 @@ def clean_document_answer(document):
 # =========================================================
 
 if "messages" not in st.session_state:
-
     st.session_state["messages"] = []
 
 
 # =========================================================
-# 기존 대화 내용 출력
+# 기존 대화 출력
 # =========================================================
 
 for message in st.session_state["messages"]:
@@ -241,14 +270,14 @@ for message in st.session_state["messages"]:
 
 
 # =========================================================
-# 사용자 질문
+# 사용자 입력
 # =========================================================
 
 if question := st.chat_input(
     "메시지를 입력해 주세요"
 ):
 
-    # 사용자 질문 기록
+    # 사용자 메시지 저장
     st.session_state["messages"].append({
         "role": "user",
         "content": question
@@ -264,37 +293,17 @@ if question := st.chat_input(
 
     retrieved = retrieve_documents(
         question,
-        top_k=3
+        top_k=1
     )
 
 
-    if retrieved:
-
-        documents = [
-            item["text"]
-            for item in retrieved
-        ]
-
-        context = "\n".join(
-            documents
-        )
-
-    else:
-
-        documents = []
-
-        context = (
-            "질문과 관련된 정보가 "
-            "등록된 지식 문서에 없습니다."
-        )
-
-
     # =====================================================
-    # 검색된 자료 확인
-    # 나중에 발표 끝나면 지워도 됨
+    # 검색 결과 표시
     # =====================================================
 
-    with st.expander("🔎 검색된 참고 자료"):
+    with st.expander(
+        "🔎 검색된 참고 자료"
+    ):
 
         if retrieved:
 
@@ -320,7 +329,7 @@ if question := st.chat_input(
 
 
     # =====================================================
-    # 2. 관련 자료가 없는 경우
+    # 2. 검색 결과가 없는 경우
     # =====================================================
 
     if not retrieved:
@@ -332,13 +341,18 @@ if question := st.chat_input(
 
 
     # =====================================================
-    # 3. 관련 자료가 있으면 LLM 사용
+    # 3. 검색 결과가 있는 경우
     # =====================================================
 
     else:
 
+        best_document = retrieved[0]["text"]
+
+        context = best_document
+
+
         user_prompt = f"""
-다음 참고 자료만 이용하여 질문에 답하세요.
+다음 참고 자료만 이용해서 질문에 답하세요.
 
 [참고 자료]
 
@@ -348,10 +362,10 @@ if question := st.chat_input(
 
 {question}
 
-조건:
+규칙:
 1. 반드시 한국어로 답변하세요.
 2. 참고 자료의 사실을 변경하지 마세요.
-3. 답변은 한두 문장으로 간단하게 작성하세요.
+3. 한 문장 또는 두 문장으로 간단하게 답변하세요.
 4. 참고 자료에 없는 정보를 만들지 마세요.
 """
 
@@ -381,6 +395,10 @@ if question := st.chat_input(
         )
 
 
+        # =================================================
+        # LLM 답변 생성
+        # =================================================
+
         with st.spinner(
             "관련 자료를 검색하고 답변 생성 중..."
         ):
@@ -389,9 +407,9 @@ if question := st.chat_input(
 
                 output = model.generate(
                     **inputs,
-                    max_new_tokens=80,
+                    max_new_tokens=60,
                     do_sample=False,
-                    repetition_penalty=1.15
+                    repetition_penalty=1.2
                 )
 
 
@@ -407,7 +425,7 @@ if question := st.chat_input(
 
 
         # =================================================
-        # LLM이 영어/헛소리를 하면 검색 결과로 대체
+        # 영어 헛소리 방지
         # =================================================
 
         if is_good_korean_answer(
@@ -418,9 +436,8 @@ if question := st.chat_input(
 
         else:
 
-            # 검색 결과 중 가장 관련성 높은 자료
-            best_document = retrieved[0]["text"]
-
+            # LLM이 이상하면
+            # 검색 결과를 자연스럽게 출력
             answer = clean_document_answer(
                 best_document
             )
@@ -436,7 +453,7 @@ if question := st.chat_input(
 
 
     # =====================================================
-    # 답변 기록
+    # 답변 저장
     # =====================================================
 
     st.session_state["messages"].append({
@@ -451,7 +468,9 @@ if question := st.chat_input(
 
 with st.sidebar:
 
-    st.header("📚 맞춤형 LLM")
+    st.header(
+        "📚 박동석 맞춤형 LLM"
+    )
 
     st.write(
         "외부 LLM API를 사용하지 않습니다."
@@ -463,9 +482,9 @@ with st.sidebar:
     )
 
     st.write(
-        "질문과 관련된 내용을 "
-        "knowledge.txt에서 검색한 후 "
-        "LLM에 참고 자료로 제공합니다."
+        "질문과 관련된 자료를 "
+        "knowledge.txt에서 검색한 뒤 "
+        "LLM에 참고 자료로 전달합니다."
     )
 
     st.write(
@@ -475,7 +494,9 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("🗑️ 대화 내용 초기화"):
+    if st.button(
+        "🗑️ 대화 내용 초기화"
+    ):
 
         st.session_state["messages"] = []
 
