@@ -3,10 +3,5 @@ torch
 transformers
 accelerate
 safetensors
-
+scikit-learn
 langchain-core
-langchain-community
-langchain-huggingface
-
-sentence-transformers
-faiss-cpu
