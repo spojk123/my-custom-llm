@@ -553,7 +553,7 @@ def get_relevant_documents(question):
     for document, score in results:
 
         # 너무 관련 없는 문서 방지
-        if score >= 0.45:
+        if score >= 0.28:
 
             relevant_docs.append(
                 document
